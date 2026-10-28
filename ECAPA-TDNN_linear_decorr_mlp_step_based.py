@@ -18,7 +18,7 @@ from model.disentangled_model.linear_decorr_mlp import (
     LinearDecorrLoss,
     LinearDecorrMLP,
 )
-from model.feature_extractor.ecapa_tdnn_ver2 import SpeakerEmbeddingExtractor
+from model.feature_extractor.hf_ecapa_tdnn import SpeakerEmbeddingExtractor
 from params.param import BATCH_SIZE, DATASET_INFO, MODEL_ID
 from tool.EER import compute_eer
 from tool.linear_decorr_eval_utils import (
@@ -61,10 +61,14 @@ set_seed(GLOBAL_SEED)
 # ==========================================
 # 1) 基本設定
 # ==========================================
-if not torch.cuda.is_available():
+CUDA_AVAILABLE = torch.cuda.is_available()
+if not CUDA_AVAILABLE:
     raise RuntimeError("未偵測到 CUDA 裝置，無法使用 GPU 訓練。")
 
 DEVICE = torch.device("cuda")
+print(f"CUDA available: {CUDA_AVAILABLE}")
+print(f"Using device: {DEVICE}")
+print(f"GPU: {torch.cuda.get_device_name(DEVICE)}")
 TRAIN_DATASET_NAME = "VoxCeleb2"
 VAL_DATASET_NAME = "Vox-CA5"
 

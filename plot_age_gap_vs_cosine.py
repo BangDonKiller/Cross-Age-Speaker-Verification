@@ -14,7 +14,7 @@ import torchaudio.transforms as T
 from tqdm import tqdm
 
 from params.param import DATASET_INFO, MODEL_ID, DEVICE
-from model.feature_extractor.ecapa_tdnn_ver2 import SpeakerEmbeddingExtractor
+from model.feature_extractor.hf_ecapa_tdnn import SpeakerEmbeddingExtractor
 from model.disentangled_model.linear_decorr_mlp import LinearDecorrMLP
 
 warnings.filterwarnings(
@@ -42,7 +42,7 @@ mpl.rcParams["axes.unicode_minus"] = False
 # 基本設定
 # ==========================================
 DEVICE = torch.device(DEVICE if isinstance(DEVICE, str) else str(DEVICE))
-DATASET_NAME_DEFAULT = "Vox-CA20"  # 預設資料集
+DATASET_NAME_DEFAULT = "Vox-O"  # 預設資料集
 MAX_SAMPLES = None  # None 表示全部，或設定數字限制
 
 # 模型架構設定（與訓練時一致）
@@ -213,14 +213,20 @@ def plot_regression_comparison(results_per_exp, exp_labels, output_plot, title, 
         r2 = 1.0 - ss_res / (ss_tot + 1e-12)
         corr = float(np.corrcoef(age_np, cos_np)[0, 1]) if np.std(age_np) > 1e-12 and np.std(cos_np) > 1e-12 else float("nan")
 
+        plt.scatter(
+            age_np,
+            cos_np,
+            color=colors[idx % len(colors)],
+            alpha=0.25,
+            s=18,
+        )
         plt.plot(
             x_line,
             y_line,
             color=colors[idx % len(colors)],
             lw=2,
             label=(
-                f"{exp_label} fit\n"
-                f"R²={r2:.3f}  r={corr:.3f}"
+                f"{exp_label}  R²={r2:.3f}  r={corr:.3f}"
             ),
         )
 
@@ -266,12 +272,22 @@ if __name__ == "__main__":
 
     # 動態生成輸出檔名
     ds_suffix = DATASET_NAME.lower().replace("-", "_")
-    OUTPUT_PLOT = f"age_gap_vs_cosine_{ds_suffix}_negative.png"
-    OUTPUT_PLOT_POS = f"age_gap_vs_cosine_{ds_suffix}_positive.png"
+    OUTPUT_PLOT = f"age_gap_vs_cosine_{ds_suffix}_negative.svg"
+    OUTPUT_PLOT_POS = f"age_gap_vs_cosine_{ds_suffix}_positive.svg"
 
     print("=" * 100)
     print(f"Age-Gap vs Cosine Similarity Analysis ({DATASET_NAME} Dataset)")
     print("=" * 100)
+
+    cuda_available = torch.cuda.is_available()
+    if DEVICE.type == "cuda" and not cuda_available:
+        raise RuntimeError("CUDA was selected, but PyTorch cannot access CUDA.")
+    print(f"CUDA available: {cuda_available}")
+    print(f"Using device: {DEVICE}")
+    if DEVICE.type == "cuda":
+        print(f"GPU: {torch.cuda.get_device_name(DEVICE)}")
+    else:
+        print("CUDA is not in use; running on CPU.")
     
     # ==========================================
     # 初始化資料集
@@ -300,11 +316,11 @@ if __name__ == "__main__":
 
     # 我們要在同一張圖上比較兩個實驗的線性趨勢線（不繪出原始資料點）
     CHECKPOINT_DIR = Path("checkpoints/linear_decorr_mlp")
-    EXPS = ["exp44", "exp15","exp35"]
+    EXPS = ["exp44","exp35"]
     EXP_LABELS = {
-        "exp44": "λ=0",
-        "exp15": "λ=10",
-        "exp35": "λ=130",
+        "exp44": "No decoupling", # (λ=0)
+        # "exp15": "λ=10",
+        "exp35": "Decoupling", # (λ=130)
     }
 
     results_per_exp = {}
